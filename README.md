@@ -3,6 +3,9 @@
 Record every tool call made by a [Claude Code](https://docs.claude.com/en/docs/claude-code) session
 via hooks, and replay it afterwards as a single, offline-friendly, static HTML timeline.
 
+> **Note**: This is a practice project, built for fun and for observing how AI coding agents
+> actually work under the hood — not a production-grade tool.
+
 ## Why
 
 Claude Code hooks let you observe `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `SessionStart`,
@@ -116,9 +119,6 @@ agent-replay open a1b2c3d4 --no-browser
 agent-replay open --latest
 ```
 
-![timeline screenshot placeholder](docs/screenshot-timeline.png)
-![expanded card screenshot placeholder](docs/screenshot-card.png)
-
 ## How it works
 
 ```
@@ -148,14 +148,3 @@ Recorded JSONL logs and rendered HTML reports contain the full input/output of e
 the session — file contents, command output, prompts, and assistant replies included. Review a
 report before sharing it with anyone; it can easily contain secrets or sensitive data from your
 project.
-
-## Development
-
-```bash
-uv sync
-uv run pytest
-```
-
-## License
-
-MIT — see [LICENSE](LICENSE).
