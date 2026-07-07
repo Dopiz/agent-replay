@@ -1,0 +1,53 @@
+[project]
+name = "agent-replay"
+version = "0.1.0"
+description = "Record Claude Code session tool calls via hooks and replay them as a single offline HTML timeline."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Dopiz", email = "dopiz.liu@gmail.com" }
+]
+requires-python = ">=3.11"
+keywords = [
+    "claude-code",
+    "hooks",
+    "agent",
+    "replay",
+    "timeline",
+    "observability",
+    "cli",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Debuggers",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "jinja2>=3.1.6",
+    "typer>=0.26.8",
+]
+
+[project.urls]
+Homepage = "https://github.com/Dopiz/agent-replay"
+Repository = "https://github.com/Dopiz/agent-replay"
+Issues = "https://github.com/Dopiz/agent-replay/issues"
+
+[project.scripts]
+agent-replay = "agent_replay:main"
+
+[build-system]
+requires = ["uv_build>=0.10.11,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

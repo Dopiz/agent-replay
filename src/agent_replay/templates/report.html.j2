@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agent-replay :: {{ session.session_id }}</title>
+<style>
+  :root {
+    --bg: #0a0b0d;
+    --surface: #121316;
+    --surface-2: #17181c;
+    --surface-3: #1d1f24;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --text: #e9eaec;
+    --text-dim: #9a9ea6;
+    --text-faint: #6b6f78;
+    --accent: #e6b450;
+    --accent-dim: rgba(230, 180, 80, 0.14);
+    --ok: #4fb87a;
+    --ok-bg: rgba(79, 184, 122, 0.14);
+    --fail: #ef6b62;
+    --fail-bg: rgba(239, 107, 98, 0.14);
+    --radius: 10px;
+    --radius-sm: 7px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  * { box-sizing: border-box; }
+
+  html { color-scheme: dark; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent); }
+
+  ::selection { background: var(--accent-dim); color: var(--text); }
+
+  /* ---------- header ---------- */
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(10, 11, 13, 0.86);
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 28px 16px;
+  }
+
+  .header-inner {
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-faint);
+    margin: 0 0 6px 0;
+  }
+
+  h1 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: -0.01em;
+  }
+
+  h1 .session-id {
+    font-family: var(--font-mono);
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 9px 16px;
+    min-width: 96px;
+  }
+
+  .stat .label {
+    color: var(--text-faint);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    margin-bottom: 3px;
+  }
+
+  .stat .value {
+    font-family: var(--font-mono);
+    font-size: 19px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  .stat.fail .value { color: var(--fail); }
+  .stat.cwd .value {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 30vw;
+  }
+
+  .tool-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .tool-chip {
+    font-family: var(--font-mono);
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: border-color 0.15s var(--ease), color 0.15s var(--ease), background 0.15s var(--ease);
+  }
+
+  .tool-chip:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+
+  .tool-chip.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .tool-chip:focus-visible,
+  .chapter-header:focus-visible,
+  .card-summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---------- timeline ---------- */
+
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 28px 64px;
+  }
+
+  .chapter {
+    position: relative;
+    margin-bottom: 32px;
+    padding-left: 22px;
+    border-left: 1px solid var(--border);
+  }
+
+  .chapter:last-child { margin-bottom: 0; }
+
+  .chapter-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 0 0 16px -23px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .chapter-header::-webkit-details-marker { display: none; }
+  .chapter-header::marker { content: ""; }
+
+  .chapter-header .chevron {
+    width: 8px;
+    height: 8px;
+    border-right: 1.5px solid var(--text-faint);
+    border-bottom: 1.5px solid var(--text-faint);
+    transform: rotate(-45deg);
+    transition: transform 0.18s var(--ease);
+    flex: none;
+  }
+
+  details.chapter[open] > .chapter-header .chevron {
+    transform: rotate(45deg);
+  }
+
+  .chapter-header-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .chapter-header .ts {
+    font-family: var(--font-mono);
+    color: var(--text-faint);
+    font-size: 11px;
+  }
+
+  .chapter-header .prompt {
+    white-space: pre-wrap;
+    font-weight: 600;
+    font-size: 14.5px;
+    margin-top: 5px;
+    color: var(--text);
+  }
+
+  .chapter-stats {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    margin-left: auto;
+  }
+
+  .chapter-stat-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 10px;
+    white-space: nowrap;
+  }
+
+  .chapter-stat-fail {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--fail);
+    background: var(--fail-bg);
+    border-radius: 999px;
+    padding: 3px 10px;
+    white-space: nowrap;
+  }
+
+  .card {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin: 0 0 8px 0;
+    overflow: hidden;
+    transition: border-color 0.15s var(--ease);
+  }
+
+  .card::before {
+    content: "";
+    position: absolute;
+    left: -22px;
+    top: 18px;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--text-faint);
+  }
+
+  .card.fail::before { background: var(--fail); }
+  .card.fail { border-color: rgba(239, 107, 98, 0.35); }
+
+  .card-summary {
+    all: unset;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 11px 14px;
+    cursor: pointer;
+  }
+
+  .card-summary .chevron {
+    width: 8px;
+    height: 8px;
+    border-right: 1.5px solid var(--text-faint);
+    border-bottom: 1.5px solid var(--text-faint);
+    transform: rotate(-45deg);
+    transition: transform 0.18s var(--ease);
+    flex: none;
+  }
+
+  .card.expanded .card-summary .chevron {
+    transform: rotate(45deg);
+  }
+
+  .card-summary .tool-name {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  .agent-badge {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .card.reply-card {
+    border-left: 2px solid var(--accent);
+  }
+
+  .card.reply-card .reply-label {
+    color: var(--accent);
+  }
+
+  pre.reply-text {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .card-summary .badge {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--ok-bg);
+    color: var(--ok);
+  }
+
+  .card.fail .card-summary .badge {
+    background: var(--fail-bg);
+    color: var(--fail);
+  }
+
+  .card-summary .duration,
+  .card-summary .ts {
+    font-family: var(--font-mono);
+    color: var(--text-faint);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .card-summary .duration { margin-left: auto; }
+
+  .card-body-wrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.2s var(--ease);
+  }
+
+  .card.expanded .card-body-wrap {
+    grid-template-rows: 1fr;
+  }
+
+  .card-body {
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .card-body-inner {
+    border-top: 1px solid var(--border);
+    padding: 12px 14px 14px;
+  }
+
+  .card-body h4 {
+    margin: 12px 0 5px 0;
+    color: var(--text-faint);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+
+  .card-body h4:first-child { margin-top: 0; }
+
+  pre {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    max-height: 340px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-dim);
+  }
+
+  .error-text {
+    color: var(--fail);
+    white-space: pre-wrap;
+  }
+
+  .truncated-note {
+    color: var(--text-faint);
+    font-size: 11px;
+    font-style: italic;
+    margin-bottom: 4px;
+  }
+
+  .hidden { display: none !important; }
+
+  .empty-state {
+    color: var(--text-faint);
+    font-size: 13px;
+    padding: 40px 0;
+    text-align: center;
+  }
+
+  @media (max-width: 640px) {
+    header { padding: 14px 16px; }
+    main { padding: 20px 16px 48px; }
+    .stat.cwd .value { max-width: 60vw; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition-duration: 0.001ms !important; }
+    .card-body-wrap { transition: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <p class="eyebrow">agent-replay &middot; session</p>
+    <h1><span class="session-id">{{ session.session_id }}</span></h1>
+    <div class="summary">
+      <div class="stat">
+        <div class="label">Duration</div>
+        <div class="value">{{ "%.1f"|format(session.total_duration_ms / 1000) }}s</div>
+      </div>
+      <div class="stat">
+        <div class="label">Tool calls</div>
+        <div class="value">{{ session.tool_call_count }}</div>
+      </div>
+      <div class="stat fail">
+        <div class="label">Failures</div>
+        <div class="value">{{ session.fail_count }}</div>
+      </div>
+      <div class="stat cwd">
+        <div class="label">Working dir</div>
+        <div class="value" title="{{ session.cwd or '-' }}">{{ session.cwd or "-" }}</div>
+      </div>
+    </div>
+    <div class="tool-counts" id="tool-filter">
+      <button type="button" class="tool-chip active" data-tool="__all__">All</button>
+      {% for name, count in session.tool_counts.items() %}
+      <button type="button" class="tool-chip" data-tool="{{ name }}">{{ name }} ({{ count }})</button>
+      {% endfor %}
+    </div>
+  </div>
+</header>
+{% macro render_event(event) %}
+{% if event.event_type == "Stop" and event.assistant_text_display is not none %}
+<div class="card reply-card" data-tool="{{ event.tool_name or 'unknown' }}">
+  <button type="button" class="card-summary" onclick="this.parentElement.classList.toggle('expanded')">
+    <span class="chevron"></span>
+    <span class="tool-name reply-label">Assistant reply</span>
+    {% if event.agent_type %}<span class="agent-badge">subagent &middot; {{ event.agent_type }}</span>{% endif %}
+    <span class="ts">{{ event.ts }}</span>
+  </button>
+  <div class="card-body-wrap">
+    <div class="card-body">
+      <div class="card-body-inner">
+        {% if event.assistant_text_truncated %}<div class="truncated-note">truncated (&gt;50KB)</div>{% endif %}
+        <pre class="reply-text">{{ event.assistant_text_display | prettyjson }}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card {{ 'fail' if event.is_failed else '' }}" data-tool="{{ event.tool_name or 'unknown' }}">
+  <button type="button" class="card-summary" onclick="this.parentElement.classList.toggle('expanded')">
+    <span class="chevron"></span>
+    <span class="tool-name">{{ event.tool_name or event.event_type }}</span>
+    <span class="badge">{{ "FAILED" if event.is_failed else "ok" }}</span>
+    {% if event.agent_type %}<span class="agent-badge">subagent &middot; {{ event.agent_type }}</span>{% endif %}
+    {% if event.duration_ms %}
+    <span class="duration">{{ "%.0f"|format(event.duration_ms) }} ms</span>
+    {% endif %}
+    <span class="ts">{{ event.ts }}</span>
+  </button>
+  <div class="card-body-wrap">
+    <div class="card-body">
+      <div class="card-body-inner">
+        {% if event.error %}
+        <h4>Error</h4>
+        <pre class="error-text">{{ event.error }}</pre>
+        {% endif %}
+        <h4>Input</h4>
+        {% if event.input_truncated %}<div class="truncated-note">truncated (&gt;50KB)</div>{% endif %}
+        <pre>{{ event.tool_input | prettyjson }}</pre>
+        {% if event.tool_output is not none %}
+        <h4>Output</h4>
+        {% if event.output_truncated %}<div class="truncated-note">truncated (&gt;50KB)</div>{% endif %}
+        <pre>{{ event.tool_output | prettyjson }}</pre>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endmacro %}
+<main>
+  {% for chapter in session.chapters %}
+  {% if chapter.prompt is not none %}
+  {% set chapter_tool_count = chapter.events | selectattr("event_type", "equalto", "PostToolUse") | list | length %}
+  {% set chapter_fail_count = chapter.events | selectattr("is_failed") | list | length %}
+  <details class="chapter">
+    <summary class="chapter-header">
+      <span class="chevron"></span>
+      <div class="chapter-header-main">
+        <div class="ts">{{ chapter.ts }}</div>
+        <div class="prompt">{{ chapter.prompt }}</div>
+      </div>
+      <span class="chapter-stats">
+        <span class="chapter-stat-count">{{ chapter_tool_count }} tool call{{ "s" if chapter_tool_count != 1 else "" }}</span>
+        {% if chapter_fail_count %}<span class="chapter-stat-fail">{{ chapter_fail_count }} failed</span>{% endif %}
+      </span>
+    </summary>
+    {% for event in chapter.events %}
+    {{ render_event(event) }}
+    {% endfor %}
+  </details>
+  {% else %}
+  <section class="chapter chapter-leading">
+    {% for event in chapter.events %}
+    {{ render_event(event) }}
+    {% endfor %}
+  </section>
+  {% endif %}
+  {% endfor %}
+  {% if not session.chapters %}
+  <div class="empty-state">No events recorded for this session.</div>
+  {% endif %}
+</main>
+<script>
+(function () {
+  var filterBar = document.getElementById('tool-filter');
+  if (!filterBar) return;
+  filterBar.addEventListener('click', function (e) {
+    var chip = e.target.closest('.tool-chip');
+    if (!chip) return;
+    var tool = chip.getAttribute('data-tool');
+    Array.prototype.forEach.call(filterBar.children, function (c) {
+      c.classList.remove('active');
+    });
+    chip.classList.add('active');
+    var cards = document.querySelectorAll('.card');
+    cards.forEach(function (card) {
+      if (tool === '__all__' || card.getAttribute('data-tool') === tool) {
+        card.classList.remove('hidden');
+      } else {
+        card.classList.add('hidden');
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
